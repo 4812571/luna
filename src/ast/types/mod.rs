@@ -1,5 +1,5 @@
-pub mod basic;
-pub use basic::*;
+pub mod primitive;
+pub use primitive::*;
 
 pub mod combination;
 pub use combination::*;

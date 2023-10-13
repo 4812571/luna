@@ -1,4 +1,4 @@
-pub enum Basic {
+pub enum Primitive {
     Nil,
     Sting,
     Number,
@@ -7,46 +7,46 @@ pub enum Basic {
     Userdata,
 }
 
-impl Basic {
+impl Primitive {
     /// Construct a new 'nil' type.
     pub fn nil() -> Self {
-        Basic::Nil
+        Primitive::Nil
     }
 
     /// Construct a new 'string' type.
     pub fn string() -> Self {
-        Basic::Sting
+        Primitive::Sting
     }
 
     /// Construct a new 'number' type.
     pub fn number() -> Self {
-        Basic::Number
+        Primitive::Number
     }
 
     /// Construct a new 'boolean' type.
     pub fn boolean() -> Self {
-        Basic::Boolean
+        Primitive::Boolean
     }
 
     /// Construct a new 'thread' type.
     pub fn thread() -> Self {
-        Basic::Thread
+        Primitive::Thread
     }
 
     /// Construct a new 'userdata' type.
     pub fn userdata() -> Self {
-        Basic::Userdata
+        Primitive::Userdata
     }
 
     /// The textual representation of the type.
     pub fn text(&self) -> String {
         match self {
-            Basic::Nil => "nil".to_string(),
-            Basic::Sting => "string".to_string(),
-            Basic::Number => "number".to_string(),
-            Basic::Boolean => "boolean".to_string(),
-            Basic::Thread => "thread".to_string(),
-            Basic::Userdata => "userdata".to_string(),
+            Primitive::Nil => "nil".to_string(),
+            Primitive::Sting => "string".to_string(),
+            Primitive::Number => "number".to_string(),
+            Primitive::Boolean => "boolean".to_string(),
+            Primitive::Thread => "thread".to_string(),
+            Primitive::Userdata => "userdata".to_string(),
         }
     }
 }
