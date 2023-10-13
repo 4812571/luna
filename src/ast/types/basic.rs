@@ -37,10 +37,9 @@ impl Basic {
     pub fn userdata() -> Self {
         Basic::Userdata
     }
-}
 
-impl ToString for Basic {
-    fn to_string(&self) -> String {
+    /// The textual representation of the type.
+    pub fn text(&self) -> String {
         match self {
             Basic::Nil => "nil".to_string(),
             Basic::Sting => "string".to_string(),
