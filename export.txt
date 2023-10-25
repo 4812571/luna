@@ -1,0 +1,1341 @@
+/* File: ./src\ast\annotation\built_in.rs */
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum TypeBuiltIn {
+    Never,
+    Any,
+    Unknown,
+}
+
+impl TypeBuiltIn {
+    pub fn text(&self) -> &'static str {
+        match self {
+            Self::Never => "never",
+            Self::Any => "any",
+            Self::Unknown => "unknown",
+        }
+    }
+}
+
+
+/* File: ./src\ast\annotation\combination.rs */
+use crate::ast::{TypeAnnotation, TypeOperator};
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct TypeCombination {
+    operator: TypeOperator,
+    left: Box<TypeAnnotation>,
+    right: Box<TypeAnnotation>,
+}
+
+impl TypeCombination {
+    /// Constructs a new [`TypeCombination`] with the given [`TypeOperator`] and a left and right [`TypeAnnotation`].
+    pub fn new<L: Into<TypeAnnotation>, R: Into<TypeAnnotation>>(
+        operator: TypeOperator,
+        left: L,
+        right: R,
+    ) -> Self {
+        Self {
+            operator,
+            left: Box::new(left.into()),
+            right: Box::new(right.into()),
+        }
+    }
+
+    /// Returns the [`TypeOperator`] of this [`TypeCombination`].
+    pub fn operator(&self) -> TypeOperator {
+        self.operator
+    }
+
+    /// Returns the left [`TypeAnnotation`] of this [`TypeCombination`].
+    pub fn left(&self) -> &TypeAnnotation {
+        &self.left
+    }
+
+    /// Returns the right [`TypeAnnotation`] of this [`TypeCombination`].
+    pub fn right(&self) -> &TypeAnnotation {
+        &self.right
+    }
+}
+
+
+/* File: ./src\ast\annotation\function.rs */
+use crate::ast::TypeAnnotation;
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct TypeArgument {
+    name: Option<String>,
+    val: TypeAnnotation,
+}
+
+impl TypeArgument {
+    /// Constructs a new [`TypeArgument`] with the given name and [`TypeAnnotation`].
+    pub fn new<T: Into<TypeAnnotation>>(name: Option<String>, val: T) -> Self {
+        Self {
+            name,
+            val: val.into(),
+        }
+    }
+
+    /// Constructs a new anonymous [`TypeArgument`] with the given [`TypeAnnotation`].
+    pub fn anonymous<T: Into<TypeAnnotation>>(val: T) -> Self {
+        Self::new(None, val)
+    }
+
+    /// Constructs a new named [`TypeArgument`] with the given name and [`TypeAnnotation`].
+    pub fn named<T: Into<TypeAnnotation>>(name: String, val: T) -> Self {
+        Self::new(Some(name), val)
+    }
+}
+
+impl TypeArgument {
+    /// Returns the name of this [`TypeArgument`].
+    pub fn name(&self) -> Option<&String> {
+        self.name.as_ref()
+    }
+
+    /// Returns the [`TypeAnnotation`] of this [`TypeArgument`].
+    pub fn val(&self) -> &TypeAnnotation {
+        &self.val
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct TypeFunction {
+    arguments: Vec<TypeArgument>,
+    result: Vec<TypeAnnotation>,
+}
+
+impl TypeFunction {
+    pub fn arguments(&self) -> &Vec<TypeArgument> {
+        &self.arguments
+    }
+
+    pub fn result(&self) -> &Vec<TypeAnnotation> {
+        &self.result
+    }
+}
+
+
+/* File: ./src\ast\annotation\mod.rs */
+use derive_more::From;
+
+pub mod built_in;
+pub mod combination;
+pub mod function;
+pub mod optional;
+pub mod primitive;
+pub mod singleton;
+pub mod table;
+
+pub use built_in::TypeBuiltIn;
+pub use combination::TypeCombination;
+pub use function::{TypeArgument, TypeFunction};
+pub use optional::TypeOptional;
+pub use primitive::TypePrimitive;
+pub use singleton::TypeSingleton;
+pub use table::{TypeArray, TypeTable, TypeTableEntry, TypeTableIndexer};
+
+#[derive(Debug, Clone, PartialEq, From)]
+pub enum TypeAnnotation {
+    BuiltIn(TypeBuiltIn),
+    Primitive(TypePrimitive),
+    Function(TypeFunction),
+    Table(TypeTable),
+    Array(TypeArray),
+    Singleton(TypeSingleton),
+    Optional(TypeOptional),
+    Combination(TypeCombination),
+}
+
+/* File: ./src\ast\annotation\optional.rs */
+use crate::ast::TypeAnnotation;
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct TypeOptional {
+    annotation: Box<TypeAnnotation>,
+}
+
+impl TypeOptional {
+    /// Constructs a new [`Optional`] with the given [`TypeAnnotation`].
+    pub fn new<T: Into<TypeAnnotation>>(annotation: T) -> Self {
+        Self {
+            annotation: Box::new(annotation.into()),
+        }
+    }
+
+    /// Returns the [`TypeAnnotation`] of this [`Optional`].
+    pub fn annotation(&self) -> &TypeAnnotation {
+        &self.annotation
+    }
+}
+
+
+/* File: ./src\ast\annotation\primitive.rs */
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum TypePrimitive {
+    Nil,
+    Boolean,
+    Number,
+    String,
+    Thread,
+    // Userdata,
+}
+
+impl TypePrimitive {
+    /// Constructs a new `TypePrimitive::Number`.
+    pub fn new() -> Self {
+        Self::Number
+    }
+
+    /// Constructs a new `TypePrimitive::Nil`.
+    pub fn nil() -> Self {
+        Self::Nil
+    }
+
+    /// Constructs a new `TypePrimitive::Boolean`.
+    pub fn boolean() -> Self {
+        Self::Boolean
+    }
+
+    /// Constructs a new `TypePrimitive::String`.
+    pub fn string() -> Self {
+        Self::String
+    }
+
+    /// Constructs a new `TypePrimitive::Thread`.
+    pub fn thread() -> Self {
+        Self::Thread
+    }
+
+    // /// Constructs a new `TypePrimitive::Userdata`.
+    // pub fn userdata() -> Self {
+    //     Self::Userdata
+    // }
+}
+
+impl TypePrimitive {
+    pub fn text(&self) -> &'static str {
+        match self {
+            Self::Nil => "nil",
+            Self::Boolean => "boolean",
+            Self::Number => "number",
+            Self::String => "string",
+            Self::Thread => "thread",
+            // Self::Userdata => "userdata",
+        }
+    }
+}
+
+
+/* File: ./src\ast\annotation\singleton.rs */
+#[derive(Debug, Clone, PartialEq)]
+pub enum TypeSingleton {
+    String(String),
+    Boolean(bool),
+}
+
+impl TypeSingleton {
+    pub fn text(&self) -> &str {
+        match self {
+            Self::String(text) => &text,
+            
+            Self::Boolean(bool) => match bool {
+                true => "true",
+                false => "false",
+            },
+        }
+    }
+}
+
+
+/* File: ./src\ast\annotation\table.rs */
+use crate::ast::TypeAnnotation;
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct TypeTableIndexer {
+    index: TypeAnnotation,
+    value: TypeAnnotation,
+}
+
+impl TypeTableIndexer {
+    /// Construct a new `TypeTableIndexer` with the given `index` and `value`.
+    pub fn new(index: TypeAnnotation, value: TypeAnnotation) -> Self {
+        Self { index, value }
+    }
+
+    /// Returns the index of this `TypeTableIndexer`.
+    pub fn index(&self) -> &TypeAnnotation {
+        &self.index
+    }
+
+    /// Returns the value of this `TypeTableIndexer`.
+    pub fn value(&self) -> &TypeAnnotation {
+        &self.value
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct TypeTableEntry {
+    index: String,
+    value: TypeAnnotation,
+}
+
+impl TypeTableEntry {
+    /// Construct a new `TypeTableEntry` with the given `index` and `value`.
+    pub fn new(index: String, value: TypeAnnotation) -> Self {
+        Self { index, value }
+    }
+
+    /// Returns the index of this `TypeTableEntry`.
+    pub fn index(&self) -> &str {
+        &self.index
+    }
+
+    /// Returns the value of this `TypeTableEntry`.
+    pub fn value(&self) -> &TypeAnnotation {
+        &self.value
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct TypeTable {
+    entries: Vec<TypeTableEntry>,
+    indexer: Option<Box<TypeTableIndexer>>,
+}
+
+impl TypeTable {
+    /// Construct a new `Table` with the given `entries` and `indexer`.
+    pub fn new(entries: Vec<TypeTableEntry>, indexer: Option<Box<TypeTableIndexer>>) -> Self {
+        Self { entries, indexer }
+    }
+
+    /// Returns the entries of this `Table`.
+    pub fn entries(&self) -> &Vec<TypeTableEntry> {
+        &self.entries
+    }
+
+    /// Returns the indexer of this `Table`.
+    pub fn indexer(&self) -> &Option<Box<TypeTableIndexer>> {
+        &self.indexer
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct TypeArray {
+    item: Option<Box<TypeAnnotation>>,
+}
+
+impl TypeArray {
+    pub fn new(item: Option<Box<TypeAnnotation>>) -> Self {
+        Self { item }
+    }
+
+    pub fn item(&self) -> &Option<Box<TypeAnnotation>> {
+        &self.item
+    }
+}
+
+
+/* File: ./src\ast\construct\mod.rs */
+pub mod operator;
+
+pub use operator::{BinaryOperator, TypeOperator, UnaryOperator};
+
+
+/* File: ./src\ast\construct\operator.rs */
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum UnaryOperator {
+    Negate,
+    Length,
+    Not,
+}
+
+impl UnaryOperator {
+    /// Constructs a new `UnaryOperator::Negate`.
+    pub fn negate() -> Self {
+        Self::Negate
+    }
+
+    /// Constructs a new `UnaryOperator::Len`.
+    pub fn len() -> Self {
+        Self::Length
+    }
+
+    /// Constructs a new `UnaryOperator::Not`.
+    pub fn not() -> Self {
+        Self::Not
+    }
+}
+
+impl UnaryOperator {
+    /// Returns the textual format for the operator.
+    /// ```
+    /// use luna::ast::UnaryOperator;
+    ///
+    /// assert_eq!(UnaryOperator::negate().text(), "-");
+    /// assert_eq!(UnaryOperator::len().text(), "#");
+    /// assert_eq!(UnaryOperator::not().text(), "not");
+    /// ````
+    pub fn text(&self) -> &'static str {
+        match &self {
+            Self::Negate => "-",
+            Self::Length => "#",
+            Self::Not => "not",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum BinaryOperator {
+    // Math
+    Add,
+    Subtract,
+    Multiply,
+    Divide,
+    Modulo,
+    Power,
+
+    // Logical
+    And,
+    Or,
+
+    // Equality
+    Equal,
+    NotEqual,
+
+    // Comparisons
+    LessThan,
+    GreaterThan,
+    GreaterThanOrEqual,
+    LessThanOrEqual,
+}
+
+impl BinaryOperator {
+    /// Constructs a new `BinaryOperator::Add`.
+    pub fn add() -> Self {
+        Self::Add
+    }
+
+    /// Constructs a new `BinaryOperator::Subtract`.
+    pub fn subtract() -> Self {
+        Self::Subtract
+    }
+
+    /// Constructs a new `BinaryOperator::Multiply`.
+    pub fn multiply() -> Self {
+        Self::Multiply
+    }
+
+    /// Constructs a new `BinaryOperator::Divide`.
+    pub fn divide() -> Self {
+        Self::Divide
+    }
+
+    /// Constructs a new `BinaryOperator::Modulo`.
+    pub fn modulo() -> Self {
+        Self::Modulo
+    }
+
+    /// Constructs a new `BinaryOperator::Power`.
+    pub fn power() -> Self {
+        Self::Power
+    }
+
+    /// Constructs a new `BinaryOperator::And`.
+    pub fn and() -> Self {
+        Self::And
+    }
+
+    /// Constructs a new `BinaryOperator::Or`.
+    pub fn or() -> Self {
+        Self::Or
+    }
+
+    /// Constructs a new `BinaryOperator::Equal`.
+    pub fn equal() -> Self {
+        Self::Equal
+    }
+
+    /// Constructs a new `BinaryOperator::NotEqual`.
+    pub fn not_equal() -> Self {
+        Self::NotEqual
+    }
+
+    /// Constructs a new `BinaryOperator::LessThan`.
+    pub fn less_than() -> Self {
+        Self::LessThan
+    }
+
+    /// Constructs a new `BinaryOperator::GreaterThan`.
+    pub fn greater_than() -> Self {
+        Self::GreaterThan
+    }
+
+    /// Constructs a new `BinaryOperator::GreaterThanOrEqual`.
+    pub fn greater_than_or_equal() -> Self {
+        Self::GreaterThanOrEqual
+    }
+
+    /// Constructs a new `BinaryOperator::LessThanOrEqual`.
+    pub fn less_than_or_equal() -> Self {
+        Self::LessThanOrEqual
+    }
+}
+
+impl BinaryOperator {
+    /// Returns the textual format for the operator.
+    /// ```
+    /// use luna::ast::BinaryOperator;
+    ///
+    /// assert_eq!(BinaryOperator::add().text(), "+");
+    /// assert_eq!(BinaryOperator::and().text(), "and");
+    /// assert_eq!(BinaryOperator::equal().text(), "==");
+    /// assert_eq!(BinaryOperator::less_than().text(), "<");
+    /// ```
+    pub fn text(&self) -> &'static str {
+        match &self {
+            // Math
+            Self::Add => "+",
+            Self::Subtract => "-",
+            Self::Multiply => "*",
+            Self::Divide => "/",
+            Self::Modulo => "%",
+            Self::Power => "^",
+
+            // Logical
+            Self::And => "and",
+            Self::Or => "or",
+
+            // Equality
+            Self::Equal => "==",
+            Self::NotEqual => "~=",
+
+            // Comparisons
+            Self::LessThan => "<",
+            Self::GreaterThan => ">",
+            Self::GreaterThanOrEqual => ">=",
+            Self::LessThanOrEqual => "<=",
+        }
+    }
+}
+
+pub enum CompoundAssignmentOperator {
+    Add,
+    Subtract,
+    Multiply,
+    Divide,
+    Modulo,
+    Power,
+}
+
+impl CompoundAssignmentOperator {
+    pub fn text(&self) -> &'static str {
+        match &self {
+            Self::Add => "+=",
+            Self::Subtract => "-=",
+            Self::Multiply => "*=",
+            Self::Divide => "/=",
+            Self::Modulo => "%=",
+            Self::Power => "^=",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum TypeOperator {
+    Union,
+    Intersection,
+}
+
+impl TypeOperator {
+    /// Constructs a new `TypeOperator::Union`.
+    pub fn union() -> Self {
+        Self::Union
+    }
+
+    /// Constructs a new `TypeOperator::Intersection`.
+    pub fn intersection() -> Self {
+        Self::Intersection
+    }
+}
+
+impl TypeOperator {
+    /// Returns the textual format for the operator.
+    pub fn text(&self) -> &'static str {
+        match &self {
+            Self::Union => "|",
+            Self::Intersection => "&",
+        }
+    }
+}
+
+
+/* File: ./src\ast\expression\literal.rs */
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
+pub struct NilLiteral;
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
+pub struct BooleanLiteral {
+    value: bool,
+}
+
+impl BooleanLiteral {
+    pub fn value(&self) -> bool {
+        self.value
+    }
+}
+
+impl From<bool> for BooleanLiteral {
+    fn from(value: bool) -> Self {
+        Self { value }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
+pub struct StringLiteral {
+    value: String,
+}
+
+impl StringLiteral {
+    pub fn value(&self) -> &str {
+        &self.value
+    }
+}
+
+impl<T: AsRef<str>> From<T> for StringLiteral {
+    fn from(value: T) -> Self {
+        Self {
+            value: value.as_ref().to_string(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct NumberLiteral {
+    value: String,
+}
+
+impl NumberLiteral {
+    pub fn value(&self) -> &str {
+        &self.value
+    }
+}
+
+impl Default for NumberLiteral {
+    fn default() -> Self {
+        Self {
+            value: String::from("0"),
+        }
+    }
+}
+
+impl<T: AsRef<str>> From<T> for NumberLiteral {
+    fn from(value: T) -> Self {
+        Self {
+            value: value.as_ref().to_string(),
+        }
+    }
+}
+
+
+/* File: ./src\ast\expression\mod.rs */
+use derive_more::From;
+
+pub mod literal;
+pub mod operation;
+
+pub use literal::{BooleanLiteral, NilLiteral, NumberLiteral, StringLiteral};
+pub use operation::{BinaryOperation, UnaryOperation};
+
+#[derive(Debug, Clone, PartialEq, From)]
+pub enum Expression {
+    // Literals
+    NilLiteral(NilLiteral),
+    BooleanLiteral(BooleanLiteral),
+    StringLiteral(StringLiteral),
+    NumberLiteral(NumberLiteral),
+
+    // Operations
+    UnaryOperation(UnaryOperation),
+    BinaryOperation(BinaryOperation),
+}
+
+
+/* File: ./src\ast\expression\operation.rs */
+use crate::ast::{BinaryOperator, Expression, UnaryOperator};
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct UnaryOperation {
+    operator: UnaryOperator,
+    operand: Box<Expression>,
+}
+
+impl UnaryOperation {
+    /// Constructs a new [`UnaryOperation`] with the given [`UnaryOperator`] and [`Expression`].
+    pub fn new<T: Into<Expression>>(operator: UnaryOperator, operand: T) -> Self {
+        Self {
+            operator,
+            operand: Box::new(operand.into()),
+        }
+    }
+
+    /// Constructs a new negation [`UnaryOperation`] with the given [`Expression`].
+    pub fn negate<T: Into<Expression>>(operand: T) -> Self {
+        Self::new(UnaryOperator::Negate, operand)
+    }
+
+    /// Constructs a new length [`UnaryOperation`] with the given [`Expression`].
+    pub fn length<T: Into<Expression>>(operand: T) -> Self {
+        Self::new(UnaryOperator::Length, operand)
+    }
+
+    /// Constructs a new not [`UnaryOperation`] with the given [`Expression`].
+    pub fn not<T: Into<Expression>>(operand: T) -> Self {
+        Self::new(UnaryOperator::Not, operand)
+    }
+}
+
+impl UnaryOperation {
+    /// Returns the [`UnaryOperator`] of this [`UnaryOperation`].
+    pub fn operator(&self) -> UnaryOperator {
+        self.operator
+    }
+
+    /// Returns the [`Expression`] of this [`UnaryOperation`].
+    pub fn operand(&self) -> &Expression {
+        &self.operand
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct BinaryOperation {
+    operator: BinaryOperator,
+    left: Box<Expression>,
+    right: Box<Expression>,
+}
+
+impl BinaryOperation {
+    /// Constructs a new [`BinaryOperation`] with the given [`BinaryOperator`] and a left and right [`Expression`].
+    pub fn new<L: Into<Expression>, R: Into<Expression>>(
+        operator: BinaryOperator,
+        left: L,
+        right: R,
+    ) -> Self {
+        Self {
+            operator,
+            left: Box::new(left.into()),
+            right: Box::new(right.into()),
+        }
+    }
+
+    /// Constructs a new addition [`BinaryOperation`] with the given left and right [`Expression`].
+    pub fn add<L: Into<Expression>, R: Into<Expression>>(left: L, right: R) -> Self {
+        Self::new(BinaryOperator::Add, left, right)
+    }
+
+    /// Constructs a new subtraction [`BinaryOperation`] with the given left and right [`Expression`].
+    pub fn subtract<L: Into<Expression>, R: Into<Expression>>(left: L, right: R) -> Self {
+        Self::new(BinaryOperator::Subtract, left, right)
+    }
+
+    /// Constructs a new multiplication [`BinaryOperation`] with the given left and right [`Expression`].
+    pub fn multiply<L: Into<Expression>, R: Into<Expression>>(left: L, right: R) -> Self {
+        Self::new(BinaryOperator::Multiply, left, right)
+    }
+
+    /// Constructs a new division [`BinaryOperation`] with the given left and right [`Expression`].
+    pub fn divide<L: Into<Expression>, R: Into<Expression>>(left: L, right: R) -> Self {
+        Self::new(BinaryOperator::Divide, left, right)
+    }
+
+    /// Constructs a new modulo [`BinaryOperation`] with the given left and right [`Expression`].
+    pub fn modulo<L: Into<Expression>, R: Into<Expression>>(left: L, right: R) -> Self {
+        Self::new(BinaryOperator::Modulo, left, right)
+    }
+
+    /// Constructs a new power [`BinaryOperation`] with the given left and right [`Expression`].
+    pub fn power<L: Into<Expression>, R: Into<Expression>>(left: L, right: R) -> Self {
+        Self::new(BinaryOperator::Power, left, right)
+    }
+
+    /// Constructs a new and [`BinaryOperation`] with the given left and right [`Expression`].
+    pub fn and<L: Into<Expression>, R: Into<Expression>>(left: L, right: R) -> Self {
+        Self::new(BinaryOperator::And, left, right)
+    }
+
+    /// Constructs a new or [`BinaryOperation`] with the given left and right [`Expression`].
+    pub fn or<L: Into<Expression>, R: Into<Expression>>(left: L, right: R) -> Self {
+        Self::new(BinaryOperator::Or, left, right)
+    }
+
+    /// Constructs a new equal [`BinaryOperation`] with the given left and right [`Expression`].
+    pub fn equal<L: Into<Expression>, R: Into<Expression>>(left: L, right: R) -> Self {
+        Self::new(BinaryOperator::Equal, left, right)
+    }
+
+    /// Constructs a new not equal [`BinaryOperation`] with the given left and right [`Expression`].
+    pub fn not_equal<L: Into<Expression>, R: Into<Expression>>(left: L, right: R) -> Self {
+        Self::new(BinaryOperator::NotEqual, left, right)
+    }
+
+    /// Constructs a new less than [`BinaryOperation`] with the given left and right [`Expression`].
+    pub fn less_than<L: Into<Expression>, R: Into<Expression>>(left: L, right: R) -> Self {
+        Self::new(BinaryOperator::LessThan, left, right)
+    }
+
+    /// Constructs a new greater than [`BinaryOperation`] with the given left and right [`Expression`].
+    pub fn greater_than<L: Into<Expression>, R: Into<Expression>>(left: L, right: R) -> Self {
+        Self::new(BinaryOperator::GreaterThan, left, right)
+    }
+
+    /// Constructs a new greater than or equal [`BinaryOperation`] with the given left and right [`Expression`].
+    pub fn greater_than_or_equal<L: Into<Expression>, R: Into<Expression>>(
+        left: L,
+        right: R,
+    ) -> Self {
+        Self::new(BinaryOperator::GreaterThanOrEqual, left, right)
+    }
+
+    /// Constructs a new less than or equal [`BinaryOperation`] with the given left and right [`Expression`].
+    pub fn less_than_or_equal<L: Into<Expression>, R: Into<Expression>>(left: L, right: R) -> Self {
+        Self::new(BinaryOperator::LessThanOrEqual, left, right)
+    }
+}
+
+impl BinaryOperation {
+    /// Returns the [`BinaryOperator`] of this [`BinaryOperation`].
+    pub fn operator(&self) -> BinaryOperator {
+        self.operator
+    }
+
+    /// Returns the left [`Expression`] of this [`BinaryOperation`].
+    pub fn left(&self) -> &Expression {
+        &self.left
+    }
+
+    /// Returns the right [`Expression`] of this [`BinaryOperation`].
+    pub fn right(&self) -> &Expression {
+        &self.right
+    }
+}
+
+
+/* File: ./src\ast\mod.rs */
+pub mod annotation;
+pub mod construct;
+pub mod expression;
+pub mod statement;
+
+pub use annotation::*;
+pub use construct::*;
+pub use expression::*;
+pub use statement::*;
+
+
+/* File: ./src\ast\statement\compound_assign.rs */
+
+
+/* File: ./src\ast\statement\mod.rs */
+
+
+
+/* File: ./src\format\annotation\built_in.rs */
+use crate::ast::TypeBuiltIn;
+use crate::format::{SourceFormatItem, SourceFormatSettings, SourceItem};
+
+impl SourceFormatItem for TypeBuiltIn {
+    fn format(&self, _settings: &SourceFormatSettings) -> SourceItem {
+        SourceItem::text(self.text())
+    }
+}
+
+
+/* File: ./src\format\annotation\combination.rs */
+use crate::ast::TypeCombination;
+use crate::format::{SourceFormat, SourceFormatItem, SourceFormatSettings, SourceItem};
+
+impl SourceFormatItem for TypeCombination {
+    fn format(&self, settings: &SourceFormatSettings) -> SourceItem {
+        let operator = self.operator().text();
+        let left = self.left().format_string(settings);
+        let right = self.right().format_string(settings);
+
+        SourceItem::Text(format!("{} {} {}", left, operator, right))
+    }
+}
+
+/* File: ./src\format\annotation\function.rs */
+use itertools::Itertools;
+
+use crate::ast::TypeArgument;
+use crate::ast::TypeFunction;
+use crate::format::{
+    ParenthesisFormatSetting, SourceFormat, SourceFormatItem, SourceFormatSettings, SourceItem,
+};
+
+impl SourceFormatItem for TypeArgument {
+    fn format(&self, settings: &SourceFormatSettings) -> SourceItem {
+        let value = self.val().format_string(settings);
+
+        let argument = match self.name() {
+            Some(name) => format!("{}: {}", name, value),
+            None => format!("{}", value),
+        };
+
+        SourceItem::Text(argument)
+    }
+}
+
+impl SourceFormatItem for TypeFunction {
+    fn format(&self, settings: &SourceFormatSettings) -> SourceItem {
+        let arguments = self
+            .arguments()
+            .iter()
+            .map(|argument| argument.format_string(settings))
+            .join(", ");
+
+        let result = self
+            .result()
+            .iter()
+            .map(|result| result.format_string(settings))
+            .join(", ");
+
+        let result_has_parenthesis = match settings.annotations.function_return_parenthesis {
+            ParenthesisFormatSetting::Always => true,
+            // Note: this is intentionally wrapping zero arguments in parenthesis.
+            // Consider the following example: (number) -> ()
+            ParenthesisFormatSetting::Necessary => self.result().len() != 1,
+        };
+
+        let result_parenthesized = match result_has_parenthesis {
+            true => format!("({})", result),
+            false => format!("{}", result),
+        };
+
+        SourceItem::Text(format!("({}) -> {}", arguments, result_parenthesized))
+    }
+}
+
+
+/* File: ./src\format\annotation\mod.rs */
+mod built_in;
+mod function;
+mod primitive;
+mod table;
+mod combination;
+mod singleton;
+mod optional;
+
+use crate::ast::TypeAnnotation;
+use crate::format::{SourceFormatItem, SourceFormatSettings, SourceItem};
+
+impl SourceFormatItem for TypeAnnotation {
+    fn format(&self, settings: &SourceFormatSettings) -> SourceItem {
+        match self {
+            Self::BuiltIn(a) => a.format(settings),
+            Self::Primitive(a) => a.format(settings),
+            Self::Function(a) => a.format(settings),
+            Self::Table(a) => a.format(settings),
+            Self::Array(a) => a.format(settings),
+            Self::Singleton(a) => a.format(settings),
+            Self::Optional(a) => a.format(settings),
+            Self::Combination(a) => a.format(settings),
+        }
+    }
+}
+
+// a and b and c and d
+// ((a and b) and c) and d
+
+// a / (b / (c / d))
+
+/* File: ./src\format\annotation\optional.rs */
+use crate::ast::TypeOptional;
+use crate::format::{SourceFormat, SourceFormatItem, SourceFormatSettings, SourceItem};
+
+impl SourceFormatItem for TypeOptional {
+    fn format(&self, settings: &SourceFormatSettings) -> SourceItem {
+        let value = self.annotation().format_string(settings);
+
+        SourceItem::Text(format!("{}?", value))
+    }
+}
+
+/* File: ./src\format\annotation\primitive.rs */
+use crate::ast::TypePrimitive;
+use crate::format::{SourceFormatItem, SourceFormatSettings, SourceItem};
+
+impl SourceFormatItem for TypePrimitive {
+    fn format(&self, _settings: &SourceFormatSettings) -> SourceItem {
+        SourceItem::text(self.text())
+    }
+}
+
+
+/* File: ./src\format\annotation\singleton.rs */
+use crate::ast::TypeSingleton;
+use crate::format::{SourceFormatItem, SourceFormatSettings, SourceItem};
+
+impl SourceFormatItem for TypeSingleton {
+    fn format(&self, _settings: &SourceFormatSettings) -> SourceItem {
+        SourceItem::text(self.text())
+    }
+}
+
+
+/* File: ./src\format\annotation\table.rs */
+use itertools::Itertools;
+
+use crate::ast::TypeArray;
+use crate::ast::TypeTable;
+use crate::ast::TypeTableEntry;
+use crate::ast::TypeTableIndexer;
+use crate::format::{SourceFormat, SourceFormatItem, SourceFormatSettings, SourceItem};
+
+impl SourceFormatItem for TypeTableIndexer {
+    fn format(&self, settings: &SourceFormatSettings) -> SourceItem {
+        let index = self.index().format_string(settings);
+        let value = self.value().format_string(settings);
+
+        SourceItem::Text(format!("[{}]: {}", index, value))
+    }
+}
+
+impl SourceFormatItem for TypeTableEntry {
+    fn format(&self, settings: &SourceFormatSettings) -> SourceItem {
+        let index = self.index();
+        let value = self.value().format_string(settings);
+
+        SourceItem::Text(format!("{}: {}", index, value))
+    }
+}
+
+impl SourceFormatItem for TypeTable {
+    fn format(&self, settings: &SourceFormatSettings) -> SourceItem {
+        let mut entries = self
+            .entries()
+            .iter()
+            .map(|entry| entry.format_string(settings));
+
+        let indexer = self.indexer().as_ref().map(|a| a.format_string(settings));
+
+        let content = match indexer {
+            Some(indexer) => entries.chain(std::iter::once(indexer)).join(", "),
+            None => entries.join(", "),
+        };
+
+        SourceItem::Text(format!("{{ {} }}", content))
+    }
+}
+
+impl SourceFormatItem for TypeArray {
+    fn format(&self, settings: &SourceFormatSettings) -> SourceItem {
+        let item = self
+            .item()
+            .as_ref()
+            .map(|a| a.format_string(settings))
+            .unwrap_or("".to_string());
+
+        SourceItem::Text(format!("{{ {} }}", item))
+    }
+}
+
+
+/* File: ./src\format\expression\literal.rs */
+use crate::ast::expression::literal::{BooleanLiteral, NilLiteral, NumberLiteral, StringLiteral};
+use crate::format::{SourceFormatItem, SourceFormatSettings, SourceItem};
+
+impl SourceFormatItem for NumberLiteral {
+    fn format(&self, _settings: &SourceFormatSettings) -> SourceItem {
+        SourceItem::text(self.value().to_string())
+    }
+}
+
+impl SourceFormatItem for NilLiteral {
+    fn format(&self, _settings: &SourceFormatSettings) -> SourceItem {
+        SourceItem::text("nil")
+    }
+}
+
+impl SourceFormatItem for BooleanLiteral {
+    fn format(&self, _settings: &SourceFormatSettings) -> SourceItem {
+        SourceItem::text(self.value().to_string())
+    }
+}
+
+impl SourceFormatItem for StringLiteral {
+    fn format(&self, _settings: &SourceFormatSettings) -> SourceItem {
+        SourceItem::text(self.value().to_string())
+    }
+}
+
+
+/* File: ./src\format\expression\mod.rs */
+mod literal;
+
+
+/* File: ./src\format\mod.rs */
+pub mod annotation;
+pub mod expression;
+pub mod settings;
+
+pub use settings::*;
+
+pub struct FormatDescription {
+    pub indented: bool,
+    pub separated: bool,
+}
+
+pub struct SourceObject {
+    item: SourceItem,
+    description: FormatDescription,
+}
+
+pub enum SourceItem {
+    Text(String),
+    Block(Vec<SourceObject>),
+}
+
+impl SourceItem {
+    pub fn text<T: AsRef<str>>(value: T) -> Self {
+        Self::Text(value.as_ref().to_string())
+    }
+
+    pub fn block(objects: Vec<SourceObject>) -> Self {
+        Self::Block(objects)
+    }
+
+    fn indentation(settings: &SourceFormatSettings, indent: usize) -> String {
+        match settings.indentation {
+            IndentationMode::None => String::new(),
+            IndentationMode::Spaces(spaces) => " ".repeat(spaces * indent),
+            IndentationMode::Tabs(tabs) => "\t".repeat(tabs * indent),
+        }
+    }
+
+    pub fn format(&self, settings: &SourceFormatSettings, indent: usize) -> String {
+        let indentation = Self::indentation(settings, indent);
+
+        let body = match self {
+            Self::Text(text) => {
+                format!("{}", text)
+            }
+
+            Self::Block(objects) => {
+                let mut buffer = String::new();
+                let mut last_separated = false;
+
+                for object in objects {
+                    let this_separated = object.description.separated;
+
+                    buffer.push_str(object.item.format(settings, indent + 1).as_str());
+
+                    if last_separated || this_separated {
+                        buffer.push_str("\n");
+                    }
+
+                    last_separated = this_separated;
+                }
+
+                buffer
+            }
+        };
+
+        format!("{}{}", indentation, body)
+    }
+}
+
+pub(crate) trait SourceFormatItem {
+    fn format(&self, settings: &SourceFormatSettings) -> SourceItem;
+}
+
+pub trait SourceFormat {
+    fn format_string(&self, settings: &SourceFormatSettings) -> String;
+}
+
+impl<T> SourceFormat for T
+where
+    T: SourceFormatItem,
+{
+    fn format_string(&self, settings: &SourceFormatSettings) -> String {
+        self.format(settings).format(settings, 0)
+    }
+}
+
+
+/* File: ./src\format\settings.rs */
+pub enum IndentationMode {
+    None,
+    Spaces(usize),
+    Tabs(usize),
+}
+
+impl Default for IndentationMode {
+    fn default() -> Self {
+        Self::Spaces(4)
+    }
+}
+
+pub enum ParenthesisFormatSetting {
+    Necessary,
+    Always,
+}
+
+impl Default for ParenthesisFormatSetting {
+    fn default() -> Self {
+        Self::Necessary
+    }
+}
+
+pub struct OperatorFormatSetting {
+    pub spacing: bool,
+    pub parenthesis: ParenthesisFormatSetting,
+}
+
+impl Default for OperatorFormatSetting {
+    fn default() -> Self {
+        Self {
+            spacing: true,
+            parenthesis: ParenthesisFormatSetting::default(),
+        }
+    }
+}
+
+#[derive(Default)]
+pub struct OperatorFormatSettings {
+    // Math
+    pub add: OperatorFormatSetting,
+    pub subtract: OperatorFormatSetting,
+    pub multiply: OperatorFormatSetting,
+    pub divide: OperatorFormatSetting,
+
+    // Logical
+    pub and: OperatorFormatSetting,
+    pub or: OperatorFormatSetting,
+
+    // Equality
+    pub equal: OperatorFormatSetting,
+    pub not_equal: OperatorFormatSetting,
+
+    // Comparisons
+    pub less_than: OperatorFormatSetting,
+    pub greater_than: OperatorFormatSetting,
+    pub greater_than_or_equal: OperatorFormatSetting,
+    pub less_than_or_equal: OperatorFormatSetting,
+}
+
+#[derive(Default)]
+pub struct AnnotationFormatSettings {
+    pub function_return_parenthesis: ParenthesisFormatSetting,
+}
+
+#[derive(Default)]
+pub struct SourceFormatSettings {
+    pub indentation: IndentationMode,
+    pub operators: OperatorFormatSettings,
+    pub annotations: AnnotationFormatSettings,
+}
+
+
+/* File: ./src\lexer.rs */
+
+
+/* File: ./src\lib.rs */
+pub mod ast;
+pub mod format;
+pub mod precedence;
+
+/* File: ./src\main.rs */
+use std::fs::{self, File, OpenOptions};
+use std::io::{self, Write};
+use std::path::Path;
+use walkdir::WalkDir;
+
+fn main() -> io::Result<()> {
+    let output_path = "export.txt";
+    let mut output_file = OpenOptions::new()
+        .create(true)
+        .write(true)
+        .truncate(true)
+        .open(output_path)?;
+
+    for entry in WalkDir::new("./src").into_iter().filter_map(|e| e.ok()) {
+        let path = entry.path();
+        if path.is_file() {
+            let content = fs::read_to_string(&path)?;
+            writeln!(output_file, "/* File: {} */", path.display())?;
+            writeln!(output_file, "{}\n", content)?;
+        }
+    }
+
+    println!("Exported source to {}", output_path);
+    Ok(())
+}
+
+
+/* File: ./src\precedence\mod.rs */
+mod operator;
+
+/*
+    Literal
+    Identifier
+    Index
+    Call
+    Unary
+    Binary
+     ^
+     * / %
+     + -
+     and
+     or
+     == ~=
+     <= >= < >
+*/
+
+pub const VERBATIM: u8 = 0;
+pub const UNARY: u8 = 1;
+pub const EXPONENTIATION: u8 = 2;
+pub const MULTIPLICATIVE: u8 = 3;
+pub const ADDITIVE: u8 = 4;
+pub const AND: u8 = 5;
+pub const OR: u8 = 6;
+pub const EQUALITY: u8 = 7;
+pub const RELATIONAL: u8 = 8;
+
+pub trait Precedence {
+    fn precedence(&self) -> u8;
+}
+
+
+/* File: ./src\precedence\operator.rs */
+use crate::ast::{BinaryOperator, UnaryOperator};
+use crate::precedence::{self, Precedence};
+
+impl Precedence for UnaryOperator {
+    fn precedence(&self) -> u8 {
+        precedence::UNARY
+    }
+}
+
+impl Precedence for BinaryOperator {
+    fn precedence(&self) -> u8 {
+        match self {
+            Self::Add => precedence::ADDITIVE,
+            Self::Subtract => precedence::ADDITIVE,
+            Self::Multiply => precedence::MULTIPLICATIVE,
+            Self::Divide => precedence::MULTIPLICATIVE,
+            Self::Modulo => precedence::MULTIPLICATIVE,
+            Self::Power => precedence::EXPONENTIATION,
+            Self::And => precedence::AND,
+            Self::Or => precedence::OR,
+            Self::Equal => precedence::EQUALITY,
+            Self::NotEqual => precedence::EQUALITY,
+            Self::LessThan => precedence::RELATIONAL,
+            Self::GreaterThan => precedence::RELATIONAL,
+            Self::GreaterThanOrEqual => precedence::RELATIONAL,
+            Self::LessThanOrEqual => precedence::RELATIONAL,
+        }
+    }
+}
+
+
